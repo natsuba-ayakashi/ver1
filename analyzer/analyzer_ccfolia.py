@@ -86,18 +86,14 @@ def analyze_ccfolia(content, config):
 
         skill_value = extract_skill_value(text)
 
-        has_crit = False
-        has_fumble = False
         for roll_str in rolls:
             roll = int(roll_str)
             s = stats[norm_name]
             s["total"] += 1
             if 1 <= roll <= 5:
                 s["critical"] += 1
-                has_crit = True
             elif 96 <= roll <= 100:
                 s["fumble"] += 1
-                has_fumble = True
 
             ss = skill_stats[norm_name][skill_name]
             ss["total"] += 1
@@ -116,17 +112,11 @@ def analyze_ccfolia(content, config):
                 else:
                     ss["fail"] += 1
 
-        # 不明技能詳細（設定でフィルタ）
+        # 不明技能は常に詳細へ（成功/失敗も含む）
         if skill_name == "不明技能":
-            if config.get("unknown_only_crit_fumble", True):
-                if has_crit or has_fumble:
-                    entry = {"name": norm_name, "tag": tag, "rolls": rolls, "text": text}
-                    colored_entries.append(entry)
-                    unknown_skills.append(entry)
-            else:
-                entry = {"name": norm_name, "tag": tag, "rolls": rolls, "text": text}
-                colored_entries.append(entry)
-                unknown_skills.append(entry)
+            entry = {"name": norm_name, "tag": tag, "rolls": rolls, "text": text}
+            colored_entries.append(entry)
+            unknown_skills.append(entry)
 
     # キャラ毎集計
     pl_stats = {n:d for n,d in stats.items() if d["total"] >= config.get("min_rolls", 1)}
@@ -163,7 +153,7 @@ def analyze_ccfolia(content, config):
                 continue
             result.extend(render_skill_stats(name_out, skills, config))
 
-    # 不明技能詳細
+    # 不明技能詳細（常時出力）
     if config.get("show_unknown_details", True):
         result.append("\n=== 不明技能詳細（キャラ毎） ===")
         filtered = [
