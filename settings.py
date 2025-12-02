@@ -16,16 +16,22 @@ def open_settings(root, output_area, display_mode):
     exclude_var = tk.StringVar(win, value=",".join(config["exclude_tags"]))
     tk.Entry(win, textvariable=exclude_var, width=30).grid(row=1, column=1, sticky="w")
 
+    # ✅ 技能別集計オプション
     show_skill_var = tk.BooleanVar(win, value=config["show_skill_stats"])
     tk.Checkbutton(win, text="技能別集計を表示", variable=show_skill_var).grid(row=2, column=0, columnspan=2, sticky="w")
 
+    # ✅ 不明技能詳細オプション
     show_unknown_var = tk.BooleanVar(win, value=config["show_unknown_details"])
     tk.Checkbutton(win, text="不明技能詳細を表示", variable=show_unknown_var).grid(row=3, column=0, columnspan=2, sticky="w")
 
-    tk.Label(win, text="色の表示モード").grid(row=4, column=0, sticky="w")
+    # ✅ 技能値表示オプション
+    show_skill_values_var = tk.BooleanVar(win, value=config.get("show_skill_values", False))
+    tk.Checkbutton(win, text="技能値を表示", variable=show_skill_values_var).grid(row=4, column=0, columnspan=2, sticky="w")
+    
+    tk.Label(win, text="色の表示モード").grid(row=5, column=0, sticky="w")
     display_mode.set(display_mode.get())
-    tk.Radiobutton(win, text="文字色のみ", variable=display_mode, value="foreground").grid(row=4, column=1, sticky="w")
-    tk.Radiobutton(win, text="背景色＋自動文字色", variable=display_mode, value="background").grid(row=5, column=1, sticky="w")
+    tk.Radiobutton(win, text="文字色のみ", variable=display_mode, value="foreground").grid(row=5, column=1, sticky="w")
+    tk.Radiobutton(win, text="背景色＋自動文字色", variable=display_mode, value="background").grid(row=6, column=1, sticky="w")
 
     def save():
         try:
@@ -36,10 +42,11 @@ def open_settings(root, output_area, display_mode):
         config["exclude_tags"] = [t.strip() for t in exclude_var.get().split(",") if t.strip()]
         config["show_skill_stats"] = show_skill_var.get()
         config["show_unknown_details"] = show_unknown_var.get()
+        config["show_skill_values"] = show_skill_values_var.get()
         win.destroy()
 
         # ✅ 設定保存後に再解析
         re_run_analysis(output_area, display_mode)
 
-    tk.Button(win, text="保存", command=save).grid(row=6, column=0, pady=5)
-    tk.Button(win, text="キャンセル", command=win.destroy).grid(row=6, column=1, pady=5)
+    tk.Button(win, text="保存", command=save).grid(row=7, column=0, pady=5)
+    tk.Button(win, text="キャンセル", command=win.destroy).grid(row=7, column=1, pady=5)

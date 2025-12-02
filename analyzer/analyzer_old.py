@@ -1,7 +1,10 @@
 import re
 from collections import defaultdict
 from bs4 import BeautifulSoup
-from analyzer.analyzer_common import normalize_name, display_name, extract_skill_name, pad_zen
+from analyzer.analyzer_common import (
+    normalize_name, display_name, extract_skill_name, extract_skill_value,
+    pad_zen, render_skill_stats
+)
 
 ROLL_RE = re.compile(r"＞\s*(\d{1,3})")
 D100_FLAG_RE = re.compile(r"1D100", re.IGNORECASE)
@@ -21,7 +24,9 @@ def parse_css_colors(soup):
 def analyze_old(content, config):
     stats = defaultdict(lambda: {"total": 0, "critical": 0, "fumble": 0})
     skill_stats = defaultdict(lambda: defaultdict(lambda: {
-        "total": 0, "critical": 0, "fumble": 0, "raw_names": set()
+        "total": 0, "critical": 0, "fumble": 0,
+        "success": 0, "fail": 0, "raw_names": set(),
+        "value": None
     }))
     unknown_skills = []
     colored_entries = []
@@ -65,15 +70,13 @@ def analyze_old(content, config):
             title = tab.find("div", class_="tabtitle")
             if title:
                 tag = title.get_text(strip=True)
-        if config["exclude_tags"] and tag in config["exclude_tags"]:
+        if config.get("exclude_tags") and tag in config["exclude_tags"]:
             continue
 
-        # 技能名抽出
+        # 技能名・技能値抽出
         skill_name = extract_skill_name(text)
-        raw_name = skill_name
-        if len(skill_name.strip()) <= 1:
-            skill_name = "不明技能"
-            raw_name = "不明技能"
+        raw_name = skill_name if skill_name != "不明技能" else "不明技能"
+        skill_value = extract_skill_value(text)
 
         has_crit = False
         has_fumble = False
@@ -92,18 +95,34 @@ def analyze_old(content, config):
             ss = skill_stats[norm_name][skill_name]
             ss["total"] += 1
             ss["raw_names"].add(raw_name)
+            if skill_value is not None:
+                ss["value"] = skill_value
             if 1 <= roll <= 5:
                 ss["critical"] += 1
             elif 96 <= roll <= 100:
                 ss["fumble"] += 1
 
-        if skill_name == "不明技能" and (has_crit or has_fumble):
-            entry = {"name": norm_name, "tag": tag, "rolls": rolls, "text": text}
-            colored_entries.append(entry)
-            unknown_skills.append(entry)
+            # 成功／失敗判定（技能値がある場合のみ）
+            if ss["value"] is not None:
+                if roll <= ss["value"]:
+                    ss["success"] += 1
+                else:
+                    ss["fail"] += 1
+
+        # 不明技能詳細（設定でフィルタ）
+        if skill_name == "不明技能":
+            if config.get("unknown_only_crit_fumble", True):
+                if has_crit or has_fumble:
+                    entry = {"name": norm_name, "tag": tag, "rolls": rolls, "text": text}
+                    colored_entries.append(entry)
+                    unknown_skills.append(entry)
+            else:
+                entry = {"name": norm_name, "tag": tag, "rolls": rolls, "text": text}
+                colored_entries.append(entry)
+                unknown_skills.append(entry)
 
     # キャラ毎集計
-    pl_stats = {n: d for n, d in stats.items() if d["total"] >= config["min_rolls"]}
+    pl_stats = {n: d for n, d in stats.items() if d["total"] >= config.get("min_rolls", 1)}
     result = []
     result.append("=== 集計結果（キャラ毎） ===")
     if not pl_stats:
@@ -127,37 +146,22 @@ def analyze_old(content, config):
                 f"{f'{fumble_rate:.2f}'.rjust(8)}"
             )
 
-    # 技能別集計
-    if config["show_skill_stats"]:
+    # 技能別集計（共通処理呼び出し）
+    if config.get("show_skill_stats", True):
         result.append("\n=== 技能別集計（キャラ毎） ===")
         for n in pl_stats.keys():
             name_out = display_names.get(n, n)
             skills = skill_stats.get(n, {})
             if not skills:
                 continue
-            result.append(f"\n{name_out} の技能判定：")
-            result.append(
-                f"{pad_zen('技能名', 20)}  {pad_zen('判定数', 8)}  {pad_zen('クリティカル', 12)}  {pad_zen('ファンブル', 10)}"
-            )
-            result.append("-" * 60)
-            for skill, sdata in skills.items():
-                # 修正後: クリファンが1以上なら表示
-                if sdata["critical"] == 0 and sdata["fumble"] == 0:
-                    continue
-                raw_display = next(iter(sdata["raw_names"])) if sdata["raw_names"] else skill
-                result.append(
-                    f"{pad_zen(raw_display, 20)}  "
-                    f"{str(sdata['total']).rjust(8)}  "
-                    f"{str(sdata['critical']).rjust(12)}  "
-                    f"{str(sdata['fumble']).rjust(10)}"
-                )
+            result.extend(render_skill_stats(name_out, skills, config))
 
     # 不明技能詳細
-    if config["show_unknown_details"]:
+    if config.get("show_unknown_details", True):
         result.append("\n=== 不明技能詳細（キャラ毎） ===")
         filtered = [
             u for u in unknown_skills
-            if u["name"] in pl_stats and (not config["exclude_tags"] or u["tag"] not in config["exclude_tags"])
+            if u["name"] in pl_stats and (not config.get("exclude_tags") or u["tag"] not in config["exclude_tags"])
         ]
         if not filtered:
             result.append("不明技能なし")

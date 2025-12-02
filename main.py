@@ -1,6 +1,6 @@
 import tkinter as tk
 from tkinter import scrolledtext
-from controller import run_analysis, save_text  
+from controller import run_analysis, save_text
 from settings import open_settings
 from renderer import render_with_colors
 
