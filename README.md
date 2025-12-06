@@ -4,7 +4,7 @@ TRPG ここふぉりあのセッションログを解析し、キャラクター
 非公式だし趣味だし全部AIで作ってます。
 
 ## 使い方
-1. [Releases](https://github.com/ユーザー名/リポジトリ名/releases) ページから最新版の `main.exe` をダウンロードしてください。
+1. [Releases](https://github.com/natsuba-ayakashi/ver1/releases/tag/ダイス解析ツール) ページから最新版の `main.exe` をダウンロードしてください。
 2. ダウンロードした exe ファイルをダブルクリックで実行します。
 3. 解析したいログファイルを選択すると、自動で集計結果が表示されます。
 
